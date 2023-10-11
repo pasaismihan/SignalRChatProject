@@ -1,72 +1,94 @@
-
 <html>
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>SignalR Chat</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/microsoft-signalr/6.0.1/signalr.js"></script>
-  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@4.3.1/dist/css/bootstrap.min.css" integrity="sha384-ggOyR0iXCbMQv3Xipma34MD+dH/1fQ784/j6cY/iJTQUOhcWr7x9JvoRxT2MZw1T" crossorigin="anonymous">
-  <script src="https://code.jquery.com/jquery-latest.min.js"></script>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@4.3.1/dist/css/bootstrap.min.css"
+        integrity="sha384-ggOyR0iXCbMQv3Xipma34MD+dH/1fQ784/j6cY/iJTQUOhcWr7x9JvoRxT2MZw1T" crossorigin="anonymous">
+    <script src="https://code.jquery.com/jquery-latest.min.js"></script>
 
-  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@4.3.1/dist/css/bootstrap.min.css" integrity="sha384-ggOyR0iXCbMQv3Xipma34MD+dH/1fQ784/j6cY/iJTQUOhcWr7x9JvoRxT2MZw1T" crossorigin="anonymous">
-  <link rel="stylesheet" href="/style.css">
- 
-   
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@4.3.1/dist/css/bootstrap.min.css"
+        integrity="sha384-ggOyR0iXCbMQv3Xipma34MD+dH/1fQ784/j6cY/iJTQUOhcWr7x9JvoRxT2MZw1T" crossorigin="anonymous">
+    <link rel="stylesheet" href="/style.css">
+
+
     <script>
-        $(document).ready(() => {
+// Server ip ile hub uzerinden baglanti saglamak icin configure etme
+        $(document).ready(() => {    
+            const connection = new signalR.HubConnectionBuilder().withUrl("https://localhost:7110/chathub").build();
 
-const connection = new signalR.HubConnectionBuilder().withUrl("https://localhost:7110/chathub").build();
-async function start() {
-    try {
-        await connection.start();
-        console.log("SignalR Connected.");
-    } catch (err) {
-        console.log(err);
-        setTimeout(start, 5000);
-    }
-};
+// Server ile baglantiyi saglamak icin gereken islem 
+            async function start() {
+                try {
+                    await connection.start();
+                    console.log("SignalR Connected.");
+                } catch (err) {
+                    console.log(err);
+                    setTimeout(start, 5000);
+                }
+            };
 
-connection.onclose(async () => {
-    await start();
-});
+            connection.onclose(async () => {
+                await start();
+            });
+            start();
 
-// Start the connection.
-start();
+// Ilgili attribute leri, class lari ve id leri manipule eden jquery kodlari  
+            $(".disabled").attr("disabled", "disabled");
 
-            $(".disabled").attr("disabled","disabled");
-            
-            $("body").on("click",".users",function(){
-                $(".users").each((index,item)=> {
+            $("body").on("click", ".users", function () {
+                $(".users").each((index, item) => {
                     item.classList.remove("active");
                 })
                 $(this).addClass("active");
             });
-            $("#btnGirisYap").click(()=>{
-               const nickName = $("#txtNickName").val();
-               connection.invoke("GetNickName",nickName).catch(error=>console.log(error))
-               $(".disabled").removeAttr("disabled");
+            $("#btnGirisYap").click(() => {
+                const nickName = $("#txtNickName").val();
+                connection.invoke("GetNickName", nickName).catch(error => console.log(error))
+                $(".disabled").removeAttr("disabled");
             })
-connection.on("clientJoined",nickName => {
-    $("#clientDurumMesajlari").html(`${nickName} giriş yaptı.`);
-   
-$("#clientDurumMesajlari").fadeIn(2000,()=> {
-    setTimeout(()=> {
-        $("#clientDurumMesajlari").fadeOut(2000);
-    },2000)
-})
-})
-connection.on("clients",clients => {
-    $(".clients").html("");
-$.each(clients,(index,item)=>{
-const user = $(".users").first().clone();
-user.removeClass("active");
-user.html(item.nickName)
-$("#_clients").append(user); 
-})
-})
+
+// Connection.on ile ilgili kisi giris yaptiginda serverdan bu kisinin bilgisi gelmekte ve bu blokta eslestirilmektedir
+            connection.on("clientJoined", nickName => {
+                $("#clientDurumMesajlari").html(`${nickName} giriş yaptı.`);
+
+                $("#clientDurumMesajlari").fadeIn(2000, () => {
+                    setTimeout(() => {
+                        $("#clientDurumMesajlari").fadeOut(2000);
+                    }, 2000)
+                })
+            })
+// Giris yapan kullanicilari connection.on ile dinleyerek ayri ayri ekranda gorunmesi
+            connection.on("clients", clients => {
+                $(".clients").html("");
+                $.each(clients, (index, item) => {
+                    const user = $(".users").first().clone();
+                    user.removeClass("active");
+                    user.html(item.nickName)
+                    $("#_clients").append(user);
+                })
+            })
+
+// Client da SendMessageAsync fonksiyonunu invoke ederek Server da SendMessageAsync icerisinde bulunan receiveMessage degiskenini tetiklemis olduk bu kisimda receiveMessageyi dinliyoruz
+            connection.on("receiveMessage",message => {
+
+            })
+
+            $(".btnGonder").click(() => {
+// ilgili mesajlari client da yakaliyoruz
+                const clientName = $(".users.active").first().html();
+                const message = $("#txtMesaj").val();
+                
+// ilgili mesajlari clientda invoke ederek serverdaki SendMessageAsync fonksiyonuna iletiyoruz
+                connection.invoke("SendMessageAsync",message,clientName)
+
+            })
         })
     </script>
 </head>
+
 <body>
     <div class="row">
         <div class="col-md-1"></div>
@@ -76,7 +98,7 @@ $("#_clients").append(user);
                     <input class="form-control form-control-lg disabled" type="text" placeholder="Oda adı">
                     <button type="button" class="btn btn-info rightButton disabled">Oda Oluştur</button>
                     <select size="5" style="width:100%;" class="form-select disabled" multiple>
-                    <option selected value="-1">Odalar</option>
+                        <option selected value="-1">Odalar</option>
                     </select>
                     <button type="button" class="btn btn-primary rightButton disabled">Seçili Odalara Gir</button>
                     <br><br><br>
@@ -86,19 +108,20 @@ $("#_clients").append(user);
                             Tümü
                         </a>
                         <div id="_clients"></div>
-                     
+
                     </div>
                 </div>
                 <div class="col-md-6">
                     <div class="alert alert-success" id="clientDurumMesajlari" style="display: none;">
-                        
-                      </div>
+
+                    </div>
                     <!--Mesajlasma-->
-                    <textarea class="form-control" style="margin-top: 5px;" placeholder="İletilecek mesajı buraya giriniz" rows="3"></textarea>
+                    <textarea class="form-control" style="margin-top: 5px;"
+                        placeholder="İletilecek mesajı buraya giriniz" rows="3" id="txtMesaj"></textarea>
                     <button type="button" class="btn btn-ligth rightButton" id="btnGonder">Gönder</button>
                     <br><br><br>
                     <div class="list-group">
-                        <a class="list-group-item list-group-item-action" aria-current="true">
+                        <a class="list-group-item list-group-item-action message" aria-current="true">
                             <div class="d-flex w-100 justify-content-between">
                                 <h5 class="mb-1">Ali</h5>
                                 <h5 class="mb-2">Sen</h5>
@@ -119,4 +142,5 @@ $("#_clients").append(user);
         </div>
     </div>
 </body>
+
 </html>
