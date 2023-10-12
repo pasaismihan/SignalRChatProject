@@ -1,1 +1,0 @@
-const url = "https://localhost:7110/chathub";
